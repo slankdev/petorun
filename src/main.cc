@@ -4,8 +4,18 @@
 #include <dpdk/wrap.h>
 #include <thread>
 
+void process_one_packet(rte_mbuf* mbuf, size_t pid, size_t qid)
+{
+  printf("port%zd -> port%zd \n", pid, pid^1);
+  rte_pktmbuf_dump(stdout, mbuf, mbuf->pkt_len);
+  printf("\n");
+
+  size_t n_tx = rte_eth_tx_burst(pid^1, qid, &mbuf, 1);
+  if (n_tx < 1) rte_pktmbuf_free(mbuf);
+}
+
 constexpr size_t n_queues = 1;
-int l2fwd(void*)
+int main_thread(void*)
 {
   const size_t n_ports = rte_eth_dev_count();
   while (true) {
@@ -13,25 +23,12 @@ int l2fwd(void*)
 			for (size_t qid=0; qid<n_queues; qid++) {
 				constexpr size_t BURSTSZ = 32;
 				rte_mbuf* mbufs[BURSTSZ];
-
-				size_t nb_recv = rte_eth_rx_burst(pid, qid, mbufs, BURSTSZ);
-				if (nb_recv == 0) continue;
-        for (size_t i=0; i<nb_recv; i++) {
-          rte_pktmbuf_dump(stdout, mbufs[i], mbufs[i]->pkt_len);
-          size_t nb_send = rte_eth_tx_burst(pid^1, qid, &mbufs[i], 1);
-          if (nb_send < 1) rte_pktmbuf_free(mbufs[i]);
-        }
+				size_t n_rx = rte_eth_rx_burst(pid, qid, mbufs, BURSTSZ);
+				if (n_rx == 0) continue;
+        for (size_t i=0; i<n_rx; i++)
+          process_one_packet(mbufs[i], pid, qid);
 			}
     }
-  }
-}
-
-void debug(const rte_mempool* mp)
-{
-  while (true) {
-    dpdk::mp_dump(mp);
-    printf("-----------\n");
-    sleep(1);
   }
 }
 
@@ -52,9 +49,8 @@ int main(int argc, char** argv)
     dpdk::port_configure(i, n_queues, n_queues, &port_conf, mp);
   }
 
-  rte_eal_remote_launch(l2fwd, nullptr, 1);
-  std::thread t(debug, mp);
-  rte_eal_mp_wait_lcore();
-  t.join();
+  std::thread thrd(main_thread, nullptr);
+  thrd.join();
 }
+
 
