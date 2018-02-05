@@ -2,16 +2,27 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <dpdk/wrap.h>
+#include <slankdev/net/pkt.h>
 #include <thread>
 
 void process_one_packet(rte_mbuf* mbuf, size_t pid, size_t qid)
 {
-  printf("port%zd -> port%zd \n", pid, pid^1);
-  rte_pktmbuf_dump(stdout, mbuf, mbuf->pkt_len);
-  printf("\n");
+  printf("port%zd ", pid);
+  uint8_t* ptr = rte_pktmbuf_mtod(mbuf, uint8_t*);
+  size_t len = mbuf->pkt_len;
+  std::string proto = slankdev::pkt_analyzer::guess_protoname(ptr, len);
+  auto vec = slankdev::pkt_analyzer::guess_protostack(ptr, len);
+  for (size_t i=0; i<vec.size(); i++) {
+    printf("%s%s",
+        slankdev::pkt_analyzer::pkt_type2str(vec[i]).c_str(),
+        i+1<vec.size()?"/":"\n");
+  }
 
   size_t n_tx = rte_eth_tx_burst(pid^1, qid, &mbuf, 1);
-  if (n_tx < 1) rte_pktmbuf_free(mbuf);
+  if (n_tx < 1) {
+    printf("Dropped\n");
+    rte_pktmbuf_free(mbuf);
+  }
 }
 
 constexpr size_t n_queues = 1;
@@ -37,9 +48,6 @@ int main(int argc, char** argv)
   dpdk::dpdk_boot(argc, argv);
   struct rte_eth_conf port_conf;
   dpdk::init_portconf(&port_conf);
-  port_conf.rxmode.mq_mode = ETH_MQ_RX_RSS;
-  port_conf.rx_adv_conf.rss_conf.rss_key = NULL;
-  port_conf.rx_adv_conf.rss_conf.rss_hf = ETH_RSS_IP|ETH_RSS_TCP|ETH_RSS_UDP;
   struct rte_mempool* mp = dpdk::mp_alloc("RXMBUFMP", 0, 8192);
 
   size_t n_ports = rte_eth_dev_count();
