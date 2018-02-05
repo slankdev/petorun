@@ -1,21 +1,42 @@
 
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <dpdk/wrap.h>
 #include <slankdev/net/pkt.h>
 #include <thread>
 
-void process_one_packet(rte_mbuf* mbuf, size_t pid, size_t qid)
+inline void fix_udp_checksum(uint8_t* ptr, size_t len)
 {
-  printf("port%zd ", pid);
+  using namespace slankdev;
+  constexpr auto pt_eth  = pkt_analyzer::proto_eth;
+  constexpr auto pt_ipv4 = pkt_analyzer::proto_ipv4;
+  constexpr auto pt_udp  = pkt_analyzer::proto_udp;
+
+  size_t dis_ih = pkt_analyzer::find_hdr_distance(ptr, len, pt_eth, pt_ipv4);
+  ip*  ih = (ip* )(ptr + dis_ih);
+  size_t dis_uh = pkt_analyzer::find_hdr_distance(ih, len, pt_ipv4, pt_udp);
+  udp* uh = (udp*)((uint8_t*)ih + dis_uh);
+  uh->cksum = 0;
+  uh->cksum = ipv4_tcpudp_checksum(ih, uh);
+}
+
+inline void process_one_packet(rte_mbuf* mbuf, size_t pid, size_t qid)
+{
+  using namespace slankdev;
   uint8_t* ptr = rte_pktmbuf_mtod(mbuf, uint8_t*);
   size_t len = mbuf->pkt_len;
-  std::string proto = slankdev::pkt_analyzer::guess_protoname(ptr, len);
-  auto vec = slankdev::pkt_analyzer::guess_protostack(ptr, len);
-  for (size_t i=0; i<vec.size(); i++) {
-    printf("%s%s",
-        slankdev::pkt_analyzer::pkt_type2str(vec[i]).c_str(),
-        i+1<vec.size()?"/":"\n");
+  std::string proto = pkt_analyzer::guess_protoname(ptr, len);
+  if (proto=="udp") {
+    for (size_t i=0; i<len-5; i++) {
+      char* strp = reinterpret_cast<char*>(&ptr[i]);
+      if (strncmp(strp, "latex", 5) == 0) {
+        printf("port%zd ", pid);
+        printf("latex -> stysf\n");
+        memcpy(strp, "stysf", strlen("stysf"));
+      }
+      fix_udp_checksum(ptr, len);
+    }
   }
 
   size_t n_tx = rte_eth_tx_burst(pid^1, qid, &mbuf, 1);

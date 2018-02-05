@@ -26,4 +26,3 @@ run:
 		--vdev=net_af_packet0,iface=veth0 \
 		--vdev=net_af_packet1,iface=veth1
 
-
