@@ -21,7 +21,7 @@ Following is Network topology.
   +<bgp0eth0>+               +---<bgp1eth0>---+               +<bgp2eth0>+
   |          |               |                |               |          |
   |  @BGP0   |               |     @BGP1      |               |  @BGP2   |
-  |  AS0000  |               |     AS0000     |               |  AS0000  |
+  | AS65000  |               |    AS65001     |               | AS65002  |
   |   <bgp0eth1>.1-------.2<bgp1eth1>  <bgp1eth2>.1-------.2<bgp2eth1>   |
   |          |               |                |               |          |
   |          |    192.168    |                |    192.168    |          |
