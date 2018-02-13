@@ -32,6 +32,8 @@ ip netns exec bgp0 ip link set bgp0eth0 up
 ip netns exec bgp0 ip link set bgp0eth1 up
 ip netns exec bgp0 ethtool -K  bgp0eth0 rx off tx off
 ip netns exec bgp0 ethtool -K  bgp0eth1 rx off tx off
+ip netns exec bgp0 ip addr add 10.0.10.1/24    dev bgp0eth0
+ip netns exec bgp0 ip addr add 192.168.10.1/24 dev bgp0eth1
 
 ip netns exec bgp1 ip link set lo up
 ip netns exec bgp1 ip link set bgp1eth0 up
@@ -40,23 +42,34 @@ ip netns exec bgp1 ip link set bgp1eth2 up
 ip netns exec bgp1 ethtool -K  bgp1eth0 rx off tx off
 ip netns exec bgp1 ethtool -K  bgp1eth1 rx off tx off
 ip netns exec bgp1 ethtool -K  bgp1eth2 rx off tx off
+ip netns exec bgp1 ip addr add 10.0.20.1/24    dev bgp1eth0
+ip netns exec bgp1 ip addr add 192.168.10.2/24 dev bgp1eth1
+ip netns exec bgp1 ip addr add 192.168.20.1/24 dev bgp1eth2
 
 ip netns exec bgp2 ip link set lo up
 ip netns exec bgp2 ip link set bgp2eth0 up
 ip netns exec bgp2 ip link set bgp2eth1 up
 ip netns exec bgp2 ethtool -K  bgp2eth0 rx off tx off
 ip netns exec bgp2 ethtool -K  bgp2eth1 rx off tx off
+ip netns exec bgp2 ip addr add 10.0.30.1/24    dev bgp2eth0
+ip netns exec bgp2 ip addr add 192.168.20.2/24 dev bgp2eth1
 
 ip netns exec ns0 ip link set lo up
 ip netns exec ns0 ip link set em0 up
 ip netns exec ns0 ethtool -K  em0 rx off tx off
+ip netns exec ns0 ip addr add 10.0.10.2/24 dev em0
+ip netns exec ns0 ip route add default via 10.0.10.1
 
 ip netns exec ns1 ip link set lo up
 ip netns exec ns1 ip link set em1 up
 ip netns exec ns1 ethtool -K  em1 rx off tx off
+ip netns exec ns1 ip addr add 10.0.20.2/24 dev em1
+ip netns exec ns1 ip route add default via 10.0.20.1
 
 ip netns exec ns2 ip link set lo up
 ip netns exec ns2 ip link set em2 up
 ip netns exec ns2 ethtool -K  em2 rx off tx off
+ip netns exec ns2 ip addr add 10.0.30.2/24 dev em2
+ip netns exec ns2 ip route add default via 10.0.30.1
 
 
