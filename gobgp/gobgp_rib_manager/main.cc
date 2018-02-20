@@ -2,10 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include <sstream>
 #include <slankdev/hexdump.h>
+#include <slankdev/string.h>
 #include <grpc++/grpc++.h>
 #include "gobgp.grpc.pb.h"
+#include "gobgp_debug.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -13,11 +16,39 @@ using grpc::ClientReader;
 using grpc::Status;
 using gobgpapi::GobgpApi;
 
-
 class gobgp_client {
  public:
   gobgp_client(std::shared_ptr<Channel> channel)
     : stub_(GobgpApi::NewStub(channel)) {}
+
+  void MonitorRib()
+  {
+    gobgpapi::MonitorRibRequest req;
+    gobgpapi::Table t;
+    t.set_family((1<<16) | 1);
+    req.set_allocated_table(&t);
+    req.set_current(true);
+
+    gobgpapi::Destination dest;
+    ClientContext ctx;
+
+    std::unique_ptr< ClientReader<gobgpapi::Destination> >
+      reader(stub_->MonitorRib(&ctx, req));
+
+    while (reader->Read(&dest)) {
+      for (size_t i=0, n=dest.paths().size(); i<n; i++) {
+        printf("%s \n", Path2str(dest.paths()[i]).c_str());
+      }
+    }
+    Status status = reader->Finish();
+
+    if (!status.ok()) {
+      printf("Error \n");
+      printf("- error code: %d \n", status.error_code());
+      printf("- error msg : %s \n", status.error_message().c_str());
+      exit(1);
+    }
+  }
 
   void GetPath()
   {
@@ -29,14 +60,8 @@ class gobgp_client {
 
     std::unique_ptr< ClientReader<gobgpapi::Path> >
       reader(stub_->GetPath(&ctx, req));
-    size_t i = 0;
     while (reader->Read(&path)) {
-      printf("[%zd]\n", i);
-      printf("- family    : 0x%x \n", path.family());
-      printf("- source asn: %u \n", path.source_asn());
-      printf("- source id : %s \n", path.source_id().c_str());
-      printf("- identifer : %u \n", path.identifier());
-      i++;
+      printf("%s \n", Path2str(path).c_str());
     }
     Status status = reader->Finish();
 
@@ -101,7 +126,7 @@ class gobgp_client {
 
  private:
   std::unique_ptr<GobgpApi::Stub> stub_;
-};
+}; /* class gobgp_client */
 
 int main(int argc, char** argv)
 {
@@ -110,8 +135,9 @@ int main(int argc, char** argv)
       grpc::InsecureChannelCredentials());
   gobgp_client client(channel);
 
-  client.GetServer();
-  client.GetNeighbor();
-  client.GetPath();
+  // client.GetServer();
+  // client.GetNeighbor();
+  // client.GetPath();
+  client.MonitorRib();
 }
 
