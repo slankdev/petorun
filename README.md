@@ -1,8 +1,18 @@
 
-# petorun
+# Petorun
 
-This is prototype software router implementation.
-This is always under the development because of testing protocol.
+Petorun is yet another software router implementation.
+(under the development)
+
+**Design Principle**
+- Moduler: developer can extend new feature easily
+- NFV-Aware: Good at combination with VM/Container
+- SDN-Aware: Easy to operatewith software
+
+**Sub-systems**
+- Front End (using Openconfigd via gRPC)
+- RIB manager (connect to gobgpd via gRPC)
+- KNI manager (using DPDK's API)
 
 **Dependency**
 - libslankdev (https://github.com/slankdev/libslankdev)
@@ -13,9 +23,17 @@ This is always under the development because of testing protocol.
 ```
 $ git clone https://github.com/slankdev/petorun
 $ cd petrun/src && make
-$ ../misc/netns_prep.sh
-$ sudo ./petorun
-$ ../misc/netns_clean.sh
+$ sudo ./petorun -f petorun.conf
 ```
+
+## Author and Licence
+
+This software is developed under the MIT License.
+
+Author: Hiroki SHIROKURA
+
+- slank.dev [at] gmail.com
+- twitter: @slankdev
+- facebook: hiroki.shirokura
 
 
