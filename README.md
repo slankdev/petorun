@@ -4,6 +4,10 @@
 This is prototype software router implementation.
 This is always under the development because of testing protocol.
 
+**Dependency**
+- libslankdev (https://github.com/slankdev/libslankdev)
+- libdpdk\_cpp (https://github.com/slankdev/libdpdk\_cpp)
+
 ## Usage:
 
 ```
