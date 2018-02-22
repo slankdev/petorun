@@ -12,7 +12,8 @@ Petorun is yet another software router implementation.
 **Sub-systems**
 - Front End (using Openconfigd via gRPC)
 - RIB manager (connect to gobgpd via gRPC)
-- KNI manager (using DPDK's API)
+- KNI manager for native linux-interface (using DPDK's API)
+- TAP manager for native linux-interface (using DPDK's API)
 
 **Dependency**
 - libslankdev (https://github.com/slankdev/libslankdev)
@@ -23,6 +24,26 @@ Petorun is yet another software router implementation.
 ```
 $ git clone https://github.com/slankdev/petorun
 $ cd petrun/src && make
+$ cat petorun.conf
+{
+  "dplane" : {
+    "n_port" : 2,
+    "ports" : [
+      {
+        "ifname": "petorun0",
+        "pcidev": "0000:3b:00.0",
+      },
+      {
+        "ifname": "petorun1",
+        "pcidev": "0000:3b:00.1",
+      }
+    ]
+  },
+  "cplane" : {
+    "daemon": "gobgp"
+    "host": "localhost:59001"
+  }
+}
 $ sudo ./petorun -f petorun.conf
 ```
 
