@@ -55,7 +55,7 @@ void main_thread(size_t pid, rte_kni* kni)
 int main(int argc, char** argv)
 {
   dpdk::dpdk_boot_nopciattach(argc, argv);
-  size_t pid = dpdk::eth_dev_attach("0000:3b:00.0");
+  size_t pid = dpdk::eth_dev_attach("0000:00:08.0");
 
   rte_kni_init(1);
   struct rte_eth_conf port_conf;
@@ -68,7 +68,8 @@ int main(int argc, char** argv)
 
   std::thread thrd(main_thread, pid, kni);
   slankdev::socketfd::linkup("kni0");
-  slankdev::socketfd::set_ip("kni0", 0x0a000b01, 24);
+  // slankdev::socketfd::set_ip("kni0", 0x0a000b01, 24);
+  slankdev::socketfd::set_ip("kni0", 0xc0a87a02, 24);
   thrd.join();
 }
 
