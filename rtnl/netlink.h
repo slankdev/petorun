@@ -87,98 +87,20 @@ void netlink_request_route_dump(int nlsock)
   }
 }
 
-int netlink_handle_ifaddr_msg (struct nlmsghdr *hdr)
-{
-  struct ifaddrmsg *m;
-  struct rtattr *attr;
-  int attr_len, ifindex, plen;
-  uint32_t addr;
-  char buf[32];
-  struct tap_port *port;
 
+void netlink_handle_msg_route(struct nlmsghdr *hdr)
+{
   /* verify nlmsg_type */
-  if (hdr->nlmsg_type != RTM_NEWADDR && hdr->nlmsg_type != RTM_DELADDR)
-    {
-      printf ("netlink_handle_ifaddr_msg(): invalid nlmsg_type %d\n",
-              hdr->nlmsg_type);
-      return -1;
-    }
+  if (hdr->nlmsg_type != RTM_NEWROUTE && hdr->nlmsg_type != RTM_DELROUTE) {
+    printf("netlink_msg_handle_route() invalid nlmsg_type %d\n",
+        hdr->nlmsg_type);
+    return;
+  }
 
   /* parse message */
-  m = (struct ifaddrmsg *) NLMSG_DATA (hdr);
-  ifindex = m->ifa_index;
-  plen = m->ifa_prefixlen;
-
-  // only interested in ipv4 for now
-  if (m->ifa_family != AF_INET)
-    {
-      printf ("netlink_handle_ifaddr_msg(): not AF_INET (%d)\n",
-              m->ifa_family);
-      return 0;
-    }
-
-  attr_len = IFA_PAYLOAD (hdr);
-  for (attr = (struct rtattr *) IFA_RTA (m); RTA_OK (attr, attr_len);
-       attr = RTA_NEXT (attr, attr_len))
-    {
-      printf ("netlink: ifaddrmsg: rta_type %d: %s\n",
-              attr->rta_type, rta_type_name_addr (attr->rta_type));
-
-      switch (attr->rta_type)
-        {
-        case IFA_LOCAL:
-          // make sure it's AF_INET..
-          memcpy (&addr, RTA_DATA (attr), sizeof (addr));
-          inet_ntop (AF_INET, &addr, buf, sizeof (buf));
-          break;
-
-          /* todo: we probably need to handle below as well */
-        case IFA_ADDRESS:      // network address
-          // if point-to-point link (or /31) this becomes destination address
-          // we need to check m->ifa_flags for FlagPointToPoint
-          memcpy (&addr, RTA_DATA (attr), sizeof (addr));
-          inet_ntop (AF_INET, &addr, buf, sizeof (buf));
-          break;
-
-        case IFA_BROADCAST:    // broadcast address
-          //break;
-
-        default:
-          break;
-        }
-    }
-
-  /* notify rib_manager */
-  // rib_ifaddr->ipaddr.s_addr = addr;
-  // rib_ifaddr->prefix_len = plen;
-  // rib_msg->type = rib_msg_type_ipv4_ifaddr_assign;
-  // printf ("netlink: notify ifaddr to rib_manager: "
-  //         "type %d transaction_id %d ifindex %d ipaddr %s/%d\n",
-  //         rib_msg->type, rib_msg->transaction_id, ifindex, buf, plen);
-  return 0;
-}
-
-void netlink_handle_route_msg(struct nlmsghdr *hdr)
-{
-  struct rtmsg *m;
-  struct rtattr *attr;
-  char buf1[32], buf2[32], *rib_target_entry;
-  int attr_len, size, outputif = -1;
-
-  /* verify nlmsg_type */
-  if (hdr->nlmsg_type != RTM_NEWROUTE && hdr->nlmsg_type != RTM_DELROUTE)
-    {
-      printf ("netlink_msg_handle_route() invalid nlmsg_type %d\n",
-              hdr->nlmsg_type);
-      return;
-    }
-
-  /* parse message */
-  m = (struct rtmsg *) NLMSG_DATA (hdr);
+  struct rtmsg* m = (struct rtmsg *) NLMSG_DATA (hdr);
   if (m->rtm_family != AF_INET) {
-    // ignore AF_INET6 and others
-    printf ("netlink_msg_handle_route() not AF_INET (%d)\n",
-        m->rtm_family);
+    printf("is not AF_INET (%d)\n", m->rtm_family);
     return;
   }
 
@@ -187,133 +109,119 @@ void netlink_handle_route_msg(struct nlmsghdr *hdr)
   else                          printf("entry type none\n");
 #endif
 
-  attr_len = RTM_PAYLOAD (hdr);
-  for (attr = (struct rtattr *) RTM_RTA (m);
-       RTA_OK (attr, attr_len);
-       attr = RTA_NEXT (attr, attr_len)) {
-      switch (attr->rta_type)
-        {
-        case RTA_DST:
-          // memcpy (&rib_target->u.ipv4.prefix, RTA_DATA (attr),
-          //         sizeof (rib_target->u.ipv4.prefix));
-          // inet_ntop (AF_INET, &(rib_target->u.ipv4.prefix), buf1,
-          //            sizeof (buf1));
-          break;
+  int attr_len = RTM_PAYLOAD (hdr);
+  for (struct rtattr* attr = (struct rtattr *)RTM_RTA(m);
+      RTA_OK (attr, attr_len);
+      attr = RTA_NEXT (attr, attr_len)) {
+    switch (attr->rta_type)
+    {
+      case RTA_DST:{
+        // char buf1[32];
+        // memcpy (&rib_target->u.ipv4.prefix, RTA_DATA (attr),
+        //         sizeof (rib_target->u.ipv4.prefix));
+        // inet_ntop (AF_INET, &(rib_target->u.ipv4.prefix), buf1,
+        //            sizeof (buf1));
+        break;
+      }
 
-        case RTA_GATEWAY:
-          // rib_entry->u.ipv4.type = rib_entry_type_ipv4;
-          // memcpy (&rib_entry->u.ipv4.nexthop, RTA_DATA (attr),
-          //         sizeof (rib_entry->u.ipv4.nexthop));
-          // inet_ntop (AF_INET, &(rib_entry->u.ipv4.nexthop), buf2,
-          //            sizeof (buf2));
-          break;
+      case RTA_GATEWAY: {
+        // char buf2[32];
+        // rib_entry->u.ipv4.type = rib_entry_type_ipv4;
+        // memcpy (&rib_entry->u.ipv4.nexthop, RTA_DATA (attr),
+        //         sizeof (rib_entry->u.ipv4.nexthop));
+        // inet_ntop (AF_INET, &(rib_entry->u.ipv4.nexthop), buf2,
+        //            sizeof (buf2));
+        break;
+      }
 
-        case RTA_OIF:          // check if we need to know about this interface
-          memcpy (&outputif, RTA_DATA (attr), sizeof (outputif));
-          break;
+      case RTA_OIF: {
+        // check if we need to know about this interface
+        int outputif = -1;
+        memcpy (&outputif, RTA_DATA (attr), sizeof (outputif));
+        break;
+      }
 
-          /* todo: we probably need to handle these as well */
-        case RTA_PRIORITY:     // route priority
-        case RTA_METRICS:      // route metric
-        case RTA_MULTIPATH:    // multipath route (ECMP?)
-        case RTA_IIF:          // input interface index
-          break;
+        /* todo: we probably need to handle these as well */
+      case RTA_PRIORITY:     // route priority
+      case RTA_METRICS:      // route metric
+      case RTA_MULTIPATH:    // multipath route (ECMP?)
+      case RTA_IIF:          // input interface index
+        break;
 
-        default:
-          break;
-        }
+      default:
+        break;
     }
+  }
 
-#if 0
+#if 1
   if (hdr->nlmsg_type==RTM_NEWROUTE) printf("route add\n");
   else                               printf("route del\n");
 #endif
 }
 
-
-int netlink_handle_msg (struct nlmsghdr *msghdr)
+inline void netlink_msghdr_dump(FILE* fp,
+          const struct nlmsghdr* msghdr)
 {
-#if 0
-  printf ("netlink: message: type: %hu len: %lu, "
+  fprintf(fp, "netlink: message: type: %hu len: %lu, "
           "flags: %#x seq: %lu pid: %lu\n",
           (unsigned short) msghdr->nlmsg_type,
           (unsigned long) msghdr->nlmsg_len,
           (unsigned short) msghdr->nlmsg_flags,
           (unsigned long) msghdr->nlmsg_seq,
           (unsigned long) msghdr->nlmsg_pid);
-#endif
+}
+
+inline void netlink_handle_msg (struct nlmsghdr *msghdr)
+{
   /*
    * switch based on nlmsg_type of the message we just received
    * man 7 rtnetlink
    */
   switch (msghdr->nlmsg_type) {
-    case RTM_NEWADDR:
-    case RTM_DELADDR:
-      netlink_handle_ifaddr_msg(msghdr);
-      break;
 
     case RTM_NEWROUTE:
     case RTM_DELROUTE:
-      netlink_handle_route_msg(msghdr);
+      netlink_handle_msg_route(msghdr);
       break;
 
-    case NLMSG_DONE:
+    case RTM_NEWADDR:
+    case RTM_DELADDR:
     case RTM_NEWNEIGH:
     case RTM_DELNEIGH:
     case RTM_NEWLINK:
     case RTM_DELLINK:
       break; // no support
 
-    case NLMSG_ERROR:
-    default:
-      printf("type=%d: unknown or error\n", msghdr->nlmsg_type);
-      break;
+    case NLMSG_DONE : printf("NLMSG_DONE \n"); break;
+    case NLMSG_ERROR: printf("NLMSG_ERROR\n"); break;
+    default: printf("unknown(%d)\n", msghdr->nlmsg_type); break;
   }
 }
+
 
 void netlink_read_until_done(int nlsock)
 {
   char buf[NETLINK_BUFFER_SIZE];
-  int len, ret, err;
-  struct nlmsghdr *msghdr;
-  char *start;
-  int exitflag = 0;
-
   memset (buf, 0, sizeof (buf));
-  start = buf;
-  len = 0;
+  char* start = buf;
+  int len = 0;
 
   while (true) {
-    ret = recv (nlsock, start, sizeof (buf) - len, 0);
-    if (ret < 0) continue;
+    size_t recvlen = recv(nlsock, start, sizeof(buf) - len, 0);
+    len += recvlen;
 
-    len += ret;
-    for (msghdr = (struct nlmsghdr *) buf; NLMSG_OK (msghdr, len);
-         msghdr = NLMSG_NEXT (msghdr, len)) {
-
-        err = netlink_handle_msg (msghdr);
-        if (err < 0)
-          printf ("netlink: message handler returned error: %d\n", err);
-
-        if (msghdr->nlmsg_type == NLMSG_DONE ||
-            msghdr->nlmsg_type == NLMSG_ERROR) {
-          printf("netlink_read_until_done() "
-                 "finish code %d\n",
-                 msghdr->nlmsg_type);
-          exitflag++;
-        }
+    struct nlmsghdr* msghdr = (struct nlmsghdr *) buf;
+    for (; NLMSG_OK (msghdr, len); msghdr = NLMSG_NEXT (msghdr, len)) {
+        netlink_handle_msg (msghdr);
     }
 
-    if (exitflag && len == 0)
-      break;
-
-    if (len > 0)
-      {
-        printf ("netlink: shifting the data left: %d bytes\n", len);
-        memmove (buf, msghdr, len);
-        start = buf + len;
-      }
-    else
-      start = buf;
+    if (len == 0) break;
+    if (len > 0) {
+      printf ("netlink: shifting the data left: %d bytes\n", len);
+      memmove(buf, msghdr, len);
+      start = buf + len;
+    } else start = buf;
   }
 }
+
+
