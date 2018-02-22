@@ -2,7 +2,7 @@
 LIBSLANKDEV := $(HOME)/git/libslankdev
 CXXFLAGS += -I$(LIBSLANKDEV) -std=c++11
 
-SRC = main.cc
+SRC = main.cc netlink.cc
 OBJ = $(SRC:.cc=.o)
 TARGET = a.out
 
